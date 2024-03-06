@@ -5,17 +5,15 @@ from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtCore import QThread, pyqtSignal ,QTimer
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
-from Emccd_control import EmccdContorl, TemperatureControl # EmccdControl, TemperatureControl class import
+from Emccd_control_final import EmccdContorl, TemperatureControl # EmccdControl, TemperatureControl class import
 
 import pylablib as pll
 from pylablib.devices import Andor
 pll.par["devices/dlls/andor_sdk2"] = "path/to/dlls"
 
-# 240226 => 측정한 emccd 이미지가 ui상에 표시가 안된다\
-# 측정한 이미지가 그래프에 전달이 되지 않는 것으로 추정
-# 나머지 기능은 정상 작동을 확인
 
 class EmccdGui(QMainWindow):
     
@@ -28,6 +26,10 @@ class EmccdGui(QMainWindow):
         self.exposure_time = 1
         self.gain = 3
         self.count =  1
+        
+        self.rectangle_width = 30
+        self.rectangle_hight = 30
+        self.rectangle_distance = 90
         
         self.colorbar = None
         
@@ -219,6 +221,27 @@ class EmccdGui(QMainWindow):
         self.gain_input.setPlaceholderText("감도 입력")
         self.count_input.setPlaceholderText("이미지 개수 입력")
         
+        # grid box checkbox
+        self.right_layout_6 = QVBoxLayout()
+        self.right_layout.addLayout(self.right_layout_6)
+        
+        self.grid_label = QLabel("Grid")
+        self.right_layout_6.addWidget(self.grid_label)
+        
+        self.checkbox_grid = QCheckBox("Grid")
+        self.checkbox_grid.stateChanged.connect(self.grid_event)
+        self.right_layout_6.addWidget(self.checkbox_grid)
+        
+        self.grid_size_label = QLabel("Grid Size")
+        self.right_layout_6.addWidget(self.grid_size_label)
+        
+        # grid size input
+        if self.checkbox_grid.isChecked():
+            self.grid_size_input = QLineEdit(f"{self.binning} * {self.rectangle_width} * 13 " + " um")
+        else:
+            self.grid_size_input = QLineEdit("gird checkbox not checked")
+            
+        
         # 입력칸 라벨링
         self.log_label = QLabel("Log", self.control_widget)
         self.right_layout.addWidget(self.log_label)
@@ -235,6 +258,34 @@ class EmccdGui(QMainWindow):
         self.input_delay_timer = QTimer(self)
         self.input_delay_timer.setSingleShot(True)
 
+
+    def grid_event(self, frame):
+        # 체크박스 체크 되었을경우 그리드 표시
+        center = (frame.shape[0]) / 2
+
+        # Signal 영역 설정
+        self.x_in_dx ,self.x_fin_dx = round(center - self.rectangle_width / 2), round(center + self.rectangle_width / 2)
+        self.y_in_dx ,self.y_fin_dx = round(center - self.rectangle_hight / 2 -self.rectangle_distance), round(center + self.rectangle_hight / 2 -self.rectangle_distance) 
+
+        # idler 영역 설정
+        self.x_in_sx ,self.x_fin_sx = round(center - self.rectangle_width / 2), round( center + self.rectangle_width / 2)
+        self.y_in_sx ,self.y_fin_sx = round( center - self.rectangle_hight / 2 + self.rectangle_distance),round( center + self.rectangle_hight / 2 + self.rectangle_distance)
+
+        
+        if self.checkbox_grid.isChecked():
+            # Signal 영역 표시
+            idler_rect  = Rectangle((self.x_in_dx, self.y_in_dx), self.x_fin_dx - self.x_in_dx, self.y_fin_dx - self.y_in_dx, fill=False, edgecolor='blue', linestyle='--',label='Signal Area (Upper)')
+            self.ax.add_patch(idler_rect)
+            # # Idler 영역 표시 (상하 대칭)
+            signal_rect = Rectangle((self.x_in_sx, self.y_in_sx), self.x_fin_sx - self.x_in_sx, self.y_fin_sx - self.y_in_sx, fill=False, edgecolor='red', linestyle='--', label='Idler Area (Lower)')
+            self.ax.add_patch(signal_rect)
+
+            # 그래프 중앙선
+            self.ax.axvline(center, color='gray', linestyle='--')  
+            self.ax.axhline(center, color='gray', linestyle='--')  
+        
+        self.canvas.draw()
+    
     
     def add_log_message(self, message):
         self.log_text_edit.append(message)
@@ -255,9 +306,7 @@ class EmccdGui(QMainWindow):
         self.cam_thread.graph_update_signal.connect(self.update_graph)
         self.add_log_message("측정을 시작합니다")
         self.cam_thread.start()
-        self.add_log_message("test")
         self.cam_thread.graph_update_signal.connect(self.update_graph)
-        self.add_log_message("test2")
         
         # 측정 종료시 기능 활성화
         self.cam_thread.finished.connect(self.button_unlock)
