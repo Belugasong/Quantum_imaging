@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
-from Emccd_control_final import EmccdContorl, TemperatureControl # EmccdControl, TemperatureControl class import
+from Emccd_control import EmccdContorl, TemperatureControl # EmccdControl, TemperatureControl class import
 
 import pylablib as pll
 from pylablib.devices import Andor
@@ -203,7 +203,7 @@ class EmccdGui(QMainWindow):
         self.btn_stop.clicked.connect(self.Stop_event) 
         self.btn_data_save.clicked.connect(self.Data_save_event) 
         self.btn_fig_save.clicked.connect(self.Fig_save_event)
-        self.btn_close.clicked.connect(self.Close_event)
+        self.btn_close.clicked.connect(self.closeEvent)
     
         # 입력창 변경시 변수에 저장 
         
@@ -222,13 +222,13 @@ class EmccdGui(QMainWindow):
         self.count_input.setPlaceholderText("이미지 개수 입력")
         
         # grid box checkbox
-        self.right_layout_6 = QVBoxLayout()
+        self.right_layout_6 = QHBoxLayout()
         self.right_layout.addLayout(self.right_layout_6)
         
         self.grid_label = QLabel("Grid")
         self.right_layout_6.addWidget(self.grid_label)
         
-        self.checkbox_grid = QCheckBox("Grid")
+        self.checkbox_grid = QCheckBox("Grid ON/OFF")
         self.checkbox_grid.stateChanged.connect(self.grid_event)
         self.right_layout_6.addWidget(self.checkbox_grid)
         
@@ -389,7 +389,7 @@ class EmccdGui(QMainWindow):
             
     
     # 위젯이 종료될 때 실행되는 함수
-    def Close_event(self,event):
+    def closeEvent(self,event):
         
         reply = QMessageBox.question(self, 'Message', 'Are you sure you want to quit?',
                                      QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
