@@ -40,6 +40,8 @@ class EmccdGui(QMainWindow):
         
         # camera connect and thread
         self.cam = self.emccd_connect()
+        
+        # self,cam,temperature,binning,exposer_time,gain,count
         self.cam_thread = EmccdContorl(self.cam,self.temperature,self.binning,self.exposure_time,self.gain,self.count)
         
         # temperature control thread
@@ -229,18 +231,50 @@ class EmccdGui(QMainWindow):
         self.right_layout_6.addWidget(self.grid_label)
         
         self.checkbox_grid = QCheckBox("Grid ON/OFF")
-        self.checkbox_grid.stateChanged.connect(self.grid_event)
         self.right_layout_6.addWidget(self.checkbox_grid)
+        self.checkbox_grid.stateChanged.connect(self.grid_input_change)
         
         self.grid_size_label = QLabel("Grid Size")
         self.right_layout_6.addWidget(self.grid_size_label)
         
-        # grid size input
-        if self.checkbox_grid.isChecked():
-            self.grid_size_input = QLineEdit(f"{self.binning} * {self.rectangle_width} * 13 " + " um")
-        else:
-            self.grid_size_input = QLineEdit("gird checkbox not checked")
-            
+        self.grid_size_input = QLineEdit("gird checkbox not checked")
+        self.right_layout_6.addWidget(self.grid_size_input)
+        
+        # rectangle_width, rectangle_hight, rectangle_distance
+        
+        self.right_layout_7 = QHBoxLayout()
+        self.right_layout.addLayout(self.right_layout_7)
+        
+        self.rectangle_distance_label = QLabel("Rectangle Distance")
+        self.right_layout_7.addWidget(self.rectangle_distance_label)
+        
+        self.rectangle_distance_input = QLineEdit()
+        self.right_layout_7.addWidget(self.rectangle_distance_input)
+        
+        self.rectangle_width_label = QLabel("Rectangle Width")
+        self.right_layout_7.addWidget(self.rectangle_width_label)
+        
+        self.rectangle_width_input = QLineEdit()
+        self.right_layout_7.addWidget(self.rectangle_width_input)
+        
+        self.rectangle_hight_label = QLabel("Rectangle Hight")
+        self.right_layout_7.addWidget(self.rectangle_hight_label)
+        
+        self.rectangle_hight_input = QLineEdit()
+        self.right_layout_7.addWidget(self.rectangle_hight_input)
+        
+        # rectangle_width, rectangle_hight, rectangle_distance 초기값 설정
+        
+        self.rectangle_distance_input.setText(f"{self.rectangle_distance}")
+        self.rectangle_width_input.setText(f"{self.rectangle_width}")
+        self.rectangle_hight_input.setText(f"{self.rectangle_hight}")
+        
+        # rectangle_width, rectangle_hight, rectangle_distance 입력창 변경시 변수에 저장
+        
+        self.rectangle_width_input.textChanged.connect(self.rectangle_width_input_change)
+        self.rectangle_hight_input.textChanged.connect(self.rectangle_hight_input_change)
+        self.rectangle_distance_input.textChanged.connect(self.rectangle_distance_input_change)
+                   
         
         # 입력칸 라벨링
         self.log_label = QLabel("Log", self.control_widget)
@@ -257,34 +291,6 @@ class EmccdGui(QMainWindow):
         # 입력 지연 설정
         self.input_delay_timer = QTimer(self)
         self.input_delay_timer.setSingleShot(True)
-
-
-    def grid_event(self, frame):
-        # 체크박스 체크 되었을경우 그리드 표시
-        center = (frame.shape[0]) / 2
-
-        # Signal 영역 설정
-        self.x_in_dx ,self.x_fin_dx = round(center - self.rectangle_width / 2), round(center + self.rectangle_width / 2)
-        self.y_in_dx ,self.y_fin_dx = round(center - self.rectangle_hight / 2 -self.rectangle_distance), round(center + self.rectangle_hight / 2 -self.rectangle_distance) 
-
-        # idler 영역 설정
-        self.x_in_sx ,self.x_fin_sx = round(center - self.rectangle_width / 2), round( center + self.rectangle_width / 2)
-        self.y_in_sx ,self.y_fin_sx = round( center - self.rectangle_hight / 2 + self.rectangle_distance),round( center + self.rectangle_hight / 2 + self.rectangle_distance)
-
-        
-        if self.checkbox_grid.isChecked():
-            # Signal 영역 표시
-            idler_rect  = Rectangle((self.x_in_dx, self.y_in_dx), self.x_fin_dx - self.x_in_dx, self.y_fin_dx - self.y_in_dx, fill=False, edgecolor='blue', linestyle='--',label='Signal Area (Upper)')
-            self.ax.add_patch(idler_rect)
-            # # Idler 영역 표시 (상하 대칭)
-            signal_rect = Rectangle((self.x_in_sx, self.y_in_sx), self.x_fin_sx - self.x_in_sx, self.y_fin_sx - self.y_in_sx, fill=False, edgecolor='red', linestyle='--', label='Idler Area (Lower)')
-            self.ax.add_patch(signal_rect)
-
-            # 그래프 중앙선
-            self.ax.axvline(center, color='gray', linestyle='--')  
-            self.ax.axhline(center, color='gray', linestyle='--')  
-        
-        self.canvas.draw()
     
     
     def add_log_message(self, message):
@@ -302,11 +308,13 @@ class EmccdGui(QMainWindow):
         if hasattr(self, 'cam_thread') and self.cam_thread.isRunning():
             self.cam_thread.terminate()
 
-        self.cam_thread = EmccdContorl(self.cam, self.count, self.temperature, self.exposure_time, self.binning, self.gain)
+        # self,cam,temperature,binning,exposer_time,gain,count
+        self.cam_thread = EmccdContorl(self.cam, self.temperature, self.binning, self.exposure_time, self.gain, self.count)
         self.cam_thread.graph_update_signal.connect(self.update_graph)
         self.add_log_message("측정을 시작합니다")
         self.cam_thread.start()
         self.cam_thread.graph_update_signal.connect(self.update_graph)
+
         
         # 측정 종료시 기능 활성화
         self.cam_thread.finished.connect(self.button_unlock)
@@ -332,6 +340,7 @@ class EmccdGui(QMainWindow):
         self.btn_data_save.setEnabled(True)
         self.btn_fig_save.setEnabled(True)
         self.btn_close.setEnabled(False)
+        self.checkbox_grid.setEnabled(True)
 
 
     # 측정 종료하면 버튼 활성화 
@@ -347,6 +356,7 @@ class EmccdGui(QMainWindow):
         self.btn_data_save.setEnabled(True)
         self.btn_fig_save.setEnabled(True)
         self.btn_close.setEnabled(True)
+        self.checkbox_grid.setEnabled(False)
     
     
     
@@ -357,6 +367,16 @@ class EmccdGui(QMainWindow):
         
         self.ax.clear()
         
+        center = (frame.shape[0]) / 2
+
+        # Signal 영역 설정
+        self.x_in_dx ,self.x_fin_dx = round(center - self.rectangle_width / 2), round(center + self.rectangle_width / 2)
+        self.y_in_dx ,self.y_fin_dx = round(center - self.rectangle_hight / 2 -self.rectangle_distance), round(center + self.rectangle_hight / 2 -self.rectangle_distance) 
+
+        # idler 영역 설정
+        self.x_in_sx ,self.x_fin_sx = round(center - self.rectangle_width / 2), round( center + self.rectangle_width / 2)
+        self.y_in_sx ,self.y_fin_sx = round( center - self.rectangle_hight / 2 + self.rectangle_distance),round( center + self.rectangle_hight / 2 + self.rectangle_distance)
+
         # frame[frame<0] = 0  
         im = self.ax.imshow(frame , cmap='viridis')
         
@@ -364,6 +384,26 @@ class EmccdGui(QMainWindow):
             self.colorbar = plt.colorbar(im, ax=self.ax)
         else:
             self.colorbar.update_normal(im)
+        
+        if self.checkbox_grid.isChecked():
+            # Signal 영역 표시
+            idler_rect  = Rectangle((self.x_in_dx, self.y_in_dx), self.x_fin_dx - self.x_in_dx, self.y_fin_dx - self.y_in_dx, fill=False, edgecolor='blue', linestyle='--',label='Signal Area (Upper)')
+            self.ax.add_patch(idler_rect)
+            # # Idler 영역 표시 (상하 대칭)
+            signal_rect = Rectangle((self.x_in_sx, self.y_in_sx), self.x_fin_sx - self.x_in_sx, self.y_fin_sx - self.y_in_sx, fill=False, edgecolor='red', linestyle='--', label='Idler Area (Lower)')
+            self.ax.add_patch(signal_rect)
+
+            # 그래프 중앙선
+            self.ax.axvline(center, color='gray', linestyle='--')  
+            self.ax.axhline(center, color='gray', linestyle='--')
+
+        # if self.checkbox_grid.isChecked():
+        #     self.grid_size_input = QLineEdit(f"{self.binning} * {self.rectangle_width} * 13 " + " um")
+        #     self.right_layout_6.addWidget(self.grid_size_input)
+        # else:
+        #     self.grid_size_input = QLineEdit("gird checkbox not checked")
+        #     self.right_layout_6.addWidget(self.grid_size_input) 
+
         
         self.ax.set_title('Emccd Image')
         self.canvas.draw()
@@ -446,6 +486,39 @@ class EmccdGui(QMainWindow):
             self.gain = int(text)
         except:
             self.gain = 3
+
+    # 그리드 체크박스 체크시 변경하도록...!
+    def grid_input_change(self, text):
+        self.input_delay_timer.start(1000)
+        
+        if self.checkbox_grid.isChecked():
+            
+            self.grid_size_input.setText(f"{self.binning * self.rectangle_width * 13}" + "um")
+            # self.grid_size_input.setText(f"{self.binning}" * f"{self.rectangle_width}" * 13 " + " um")
+    
+        else:
+            pass
+            
+    def rectangle_width_input_change(self, text):
+        self.input_delay_timer.start(1000)
+        try:
+            self.rectangle_width = int(text)
+        except:
+            self.rectangle_width = 30
+            
+    def rectangle_hight_input_change(self, text):
+        self.input_delay_timer.start(1000)
+        try:
+            self.rectangle_hight = int(text)
+        except:
+            self.rectangle_hight = 30
+            
+    def rectangle_distance_input_change(self, text):
+        self.input_delay_timer.start(1000)
+        try:
+            self.rectangle_distance = int(text)
+        except:
+            self.rectangle_distance = 90
 
 
 # 이 코드에서 실행시, 앱 실행하는 코드
